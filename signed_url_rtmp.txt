@@ -1,0 +1,230 @@
+Generating (Signed) URLs for Amazon CloudFront for HTTP, HTTPS, and RTMP Delivery
+`````````````````````````````````````````````````````````````````````````````````
+
+The purpose of this article is to explain a couple of 'gotchas' that I ran into
+with both RTMP and Signed URLs on Amazon CloudFront.
+
+CloudFront is the CDN offering from Amazon's AWS. The greatest
+advantages of CloudFront are that you don't need to negotiate a special
+contract with a CDN and that if you're already using Amazon S3 for file
+storage, you can get up and running with CloudFront in a single day.
+
+CloudFront supports HTTP, HTTPS, RTMP and RTMPE delivery of your content.
+
+CloudFront also makes it easy to restrict access to your content using a Signed
+URL system very similar to that employed by Amazon S3, and I will touch on this
+later.
+
+What you won't find in this post:
+- how to enable signed URLs inside cloudfront
+- how the guts of the signature generation work
+
+
+CloudFront Distributions
+========================
+
+In your AWS Control Panel you can create CloudFront Distributions. Each of
+these gives you a new subdomain of cloudfront.net that you can associate with
+an S3 bucket.
+
+I won't go into the full details of configuring a new CF Disribution, but
+suffice to say that you can make two different types of Distribution:
+Streaming (RTMP/RTMPE) and Download (HTTP/HTTPS).
+
+
+HTTP
+====
+
+Given:
+
+- an S3 bucket
+- an object inside that S3 Bucket with the key 'path/to/file.mp3',
+- a Cloudfront Download Distribution attached to that S3 bucket,  with the
+  Domain Name 'asdfjkl.cloudfront.net'
+
+The HTTP URL to the file on CloudFront is simple:
+'http://asdfjkl.cloudfront.net/path/to/file.mp3'
+
+
+HTTPS
+=====
+
+This differs from HTTP only in that you replace the 'http' in the url with
+'https': 'https://asdfjkl.cloudfront.net/path/to/file.mp3'
+
+
+RTMP
+====
+
+RTMP is handled a bit differently.
+
+RTMP is only supported for certain audio and video types. As far as I
+know, these are FLV, MP3 audio, MP4 (AAC) audio, MP4 video (e.g. h.264 with MP3
+or AAC audio stream).
+
+It's important to know that RTMP requests contain different information from
+HTTP requests.
+
+A basic HTTP GET request looks like "GET /path/to/file.mp3 HTTP/1.1".
+In addition, your web browser will almost always send an extra header
+"Domain: somedomain.com" to allow the same server to host multiple domains with
+different content. Given the HTTP URL "http://somedomain.com/path/to/file.mp3"
+your browser will unambiguously make the request just described.
+
+A basic RTMP request is a bit different. Many video players use single URIs to
+describe RTMP resources (e.g. rtmp://somedomain.com/path/to/file.mp3) but these
+URIs don't describe exactly the same information as an HTTP URI.
+
+An RTMP request instaed encodes three parameters: "app", "appInstance", and
+"Stream Name".
+
+"app" and "appInstance" are used together, similarly to the HTTP "Domain" header,
+to determine which server instance to request the audio/video stream from.
+
+"Stream Name" describes which file to stream, but may not be exactly identical
+to the file path on your server.
+
+Depending on the video player or RTMP client you're using, you may be able
+to just specify the RTMP URI, or you may need to specify the "app",
+"appInstance", and "Stream Name" separately.
+
+
+First Gotcha: Stream Name
+-------------------------
+
+You want to play back the file "path/to/file.flv". What is its stream name?
+"path/to/file"
+
+You want to play back the file "path/to/file.mp3". What is its stream name?
+"mp3:path/to/file".
+
+You want to play back the file "path/to/file.mp4". What is its stream name?
+"mp4:path/to/file.mp4".
+
+You want to play back the file "path/to/file.m4v". What is its stream name?
+"mp4:path/to/file.m4v".
+
+See "Stream Name" under 7.2.2.1 in the RTMP spec.
+http://wwwimages.adobe.com/www.adobe.com/content/dam/Adobe/en/devnet/rtmp/pdf/rtmp_specification_1.0.pdf
+
+Second Gotcha: Application Name and Instance
+--------------------------------------------
+
+RTMP URIs such as 'rtmp://somedomain/a/b/c/d/file.mp3' don't actually encode
+all the information you need to play back a file from that server.
+
+Which part of the path 'a/b/c/d/file' is the "app", which part is the
+"appInstance", and which part is the "Stream Name"?
+
+The naive assumption is to split it ("a", "b", "c/d/file"), but the spec
+doesn't forbid the "/" character from appearing in the "app" or "appInstance"
+fields.
+
+So any of the following breakdowns could be correct, but only one is!
+	("a",   "b",    "c/d/file")
+	("a",   "b/c",    "d/file")
+	("a",   "b/c/d",    "file")
+	("a/b",   "c",    "d/file")
+	("a/b",   "c/d",    "file")
+	("a/b/c",   "d",    "file")
+
+But what about CloudFront?
+--------------------------
+
+Here it comes:
+
+Amazon CloudFront uses Adobe Flash Media Server (version 3.5) to serve RTMP.
+It support both the RTMP and RTMPE protocols. The "app" name is always "cfx"
+and the "appInstance" is always "st"
+
+URIs will look like 'rtmp://blah.cloudfront.net/cfx/st/<streamname>' where
+'<streamname>' is the S3 key of the file you want, converted to Stream Name
+format as described above.
+
+So, for example:
+a) if you had these two files on your S3 bucket:
+   - "path/to/an_flv_file.flv"
+   - "path/to/an_h264_file.m4v"
+b) And you had a Streaming Distribution set up for that S3 bucket at
+   'blah.cloudfront.net', then
+c) You might generate the following RTMP URIs:
+   - rtmp://blah.cloudfront.net/cfx/st/path/to/an_flv_file"
+   - rtmp://blah.cloudfront.net/cfx/st/mp4:path/to/an_h264_file.m4v"
+
+
+RTMPE
+=====
+
+Usage is exactly the same as RTMP except that your 'rtmp://...' URIs become
+'rtmpe://...' URIs.
+
+
+URL Signing / Signed URLs
+=========================
+
+I won't go into how to set up URL signing with CloudFront distributions here,
+nor will I explain how to code the URL signing function itself, though I may
+in a later article.
+
+Instead I want to focus on the basics of CloudFront's URL signing and outline
+a few gotchas.
+
+HTTP Signing
+------------
+
+The simplest case is HTTP signing. If we treat the actual signature generation
+like a black box, the inputs and outputs are:
+
+Inputs:
+- URI to a file on CloudFront ("http://blah.cloudfront.net/path/to/file.mp3"),
+- an expiry timestamp ("1358122884") and/or a source IP mask ("96.54.255.255/16"),
+- a Key Pair ID ("asdfasdfjaskdfla="),
+- and a private key ("-----BEGIN RSA PRIVATE KEY----- ...")
+
+Outputs:
+- a query string that authorizes access for requests matching the specified
+  parameters
+  ('?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cDovL2JsYWguY2xvdWRmcm9udC5uZXQvcGF0aC90by9maWxlLm1wMyIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTM1ODEyMjg4NH0sIklwQWRkcmVzcyI6eyJBV1M6U291cmNlSXAiOiI5Ni41NC4yNTUuMjU1LzE2In19fV19&Signature=SIDJ4Wf0RrqwUmGRpw0s9cvgkTcHZrmzagzFELLEmP8EZ-V~jvvlSm1hf6CQYQHFO0Tn-e10x1P~5Rh8cXzCHlQB4J2XnXMkuWO6dU3WOEkydwwwetj7xQWOWDzXbauTGjLcsXTCBvRHRgr7EOGEBVhXGlMd0HqFYEcUzXI0CYk_&Key-Pair-Id=asdfasdfjaskdfla=')
+
+The full signed URL is then file path + query string
+("http://blah.cloudfront.net/path/to/file.mp3?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNl...")
+
+
+HTTPS Signing
+-------------
+
+This is almost identical to HTTP signing, with one gotcha: you can't just
+replace "http://" with "https://" in the signed HTTP URL, you must actually
+use the "https://" URL as input to the signing function.
+
+
+RTMP Signing
+------------
+
+RTMP Signing is a little different. Here, you don't sign the full URI,
+you just sign part of the Stream Name (specifically, you omit the prefix).
+
+- Given a file "path/to/file.flv" with Stream Name "path/to/file",
+  you would sign "path/to/file"
+- Given a file "path/to/file.mp3" with Stream Name "mp3:path/to/file",
+  you would sign "path/to/file"
+- Given a file "path/to/file.p4" with Stream Name "mp4:path/to/file.mp4",
+  you would sign "path/to/file.mp4"
+
+In pseudo-Python...
+
+    stream_name = 'mp3:path/to/file'
+    stream_name_without_prefix = stream_name.split(':')[-1]
+    query_string = sign_cloudfront(stream_name_without_prefix, expiry_timestamp, key_pair_id, private_key)
+    stream_name = stream_name + query_string
+    # stream_name is now 'mp3:path/to/file?Policy=...blahblah...'
+
+"How does that even make sense?" I can hear you ask. Who can say.
+But that's how it works.
+
+
+RTMPE Signing
+-------------
+
+Is identical to RTMP signing, since the protocol name isn't included in the
+input to the signing function.
