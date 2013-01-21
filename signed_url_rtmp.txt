@@ -18,7 +18,8 @@ later.
 What you won't find in this post:
 - how to enable signed URLs inside cloudfront
 - how the guts of the signature generation work
-
+[not sure if this is worth mentioning right off the bat, can you just link to
+ the docs for these things?]
 
 CloudFront Distributions
 ========================
@@ -68,6 +69,7 @@ HTTP requests.
 A basic HTTP GET request looks like "GET /path/to/file.mp3 HTTP/1.1".
 In addition, your web browser will almost always send an extra header
 "Domain: somedomain.com" to allow the same server to host multiple domains with
+[Shouldn't this be 'Host'?]
 different content. Given the HTTP URL "http://somedomain.com/path/to/file.mp3"
 your browser will unambiguously make the request just described.
 
@@ -79,6 +81,7 @@ An RTMP request instaed encodes three parameters: "app", "appInstance", and
 "Stream Name".
 
 "app" and "appInstance" are used together, similarly to the HTTP "Domain" header,
+[ditto]
 to determine which server instance to request the audio/video stream from.
 
 "Stream Name" describes which file to stream, but may not be exactly identical
@@ -166,6 +169,9 @@ I won't go into how to set up URL signing with CloudFront distributions here,
 nor will I explain how to code the URL signing function itself, though I may
 in a later article.
 
+[perhaps it would be good to give some overview of signed urls and then link
+ to the docs for this other stuff?]
+
 Instead I want to focus on the basics of CloudFront's URL signing and outline
 a few gotchas.
 
@@ -228,3 +234,17 @@ RTMPE Signing
 
 Is identical to RTMP signing, since the protocol name isn't included in the
 input to the signing function.
+
+
+[
+This is the definitely a resource I wish we had when we were implementing RTMP!
+
+The real value of this post is the RTMP sections, the HTTP stuff is much
+better documented and easier to figure out. If you wanted you could focus just
+on RTMP and call it "The Horrors of RTMP and CloudFront Signed URLs" or
+something like that lol
+
+One thing that might be good to include would be an example using boto, since
+it now supports generating signed cloudfront URLs. It's really poorly documented
+so people probably google it a fair bit.
+]
