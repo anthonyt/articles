@@ -1,0 +1,8 @@
+Why the heck does adobe use \r line endings?! it doesn't make sense... nobody's done that in years.
+
+From wikipedia...
+LF:    Multics, Unix and Unix-like systems (GNU/Linux, Mac OS X, FreeBSD, AIX, Xenix, etc.), BeOS, Amiga, RISC OS and others.
+CR+LF: Microsoft Windows, DEC TOPS-10, RT-11 and most other early non-Unix and non-IBM OSes, CP/M, MP/M, DOS (MS-DOS, PC-DOS, etc.), Atari TOS, OS/2, Symbian OS, Palm OS, Amstrad CPC
+LF+CR: Acorn BBC and RISC OS spooled text output.
+CR:    Commodore 8-bit machines, Acorn BBC, ZX Spectrum, TRS-80, Apple II family, Mac OS up to version 9 and OS-9
+RS:    QNX pre-POSIX implementation.

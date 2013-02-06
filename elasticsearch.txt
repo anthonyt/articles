@@ -1,0 +1,4 @@
+
+On setting up elasticsearch for searching our videos, etc. Probably best to
+cover an intro to the concepts in elasticsearch esp index names and mappings
+and stored fields and stuff like that.

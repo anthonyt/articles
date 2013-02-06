@@ -1,0 +1,5 @@
+and what does that even mean. "you shouldn't do that - http is stateless!" wth
+is that supposed to mean
+
+and how is google docs able to get away with it? is real-time communication
+an exception to http's statelessness?
