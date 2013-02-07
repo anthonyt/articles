@@ -6,3 +6,6 @@ CR+LF: Microsoft Windows, DEC TOPS-10, RT-11 and most other early non-Unix and n
 LF+CR: Acorn BBC and RISC OS spooled text output.
 CR:    Commodore 8-bit machines, Acorn BBC, ZX Spectrum, TRS-80, Apple II family, Mac OS up to version 9 and OS-9
 RS:    QNX pre-POSIX implementation.
+
+
+see autocommit hook at: http://pastebin.com/EAZ2rGDs
