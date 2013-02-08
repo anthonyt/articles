@@ -1,0 +1,131 @@
+Intro
+-----
+
+Matt and I have recently been debugging an integration with Google Apps using
+Oauth2 authentication.
+
+This will only make sense to people who have done a similar thing.
+
+What it comes down to is that our application needs read-only access to three
+scopes:
+
+	https://apps-apis.google.com/a/feeds/groups/
+	https://apps-apis.google.com/a/feeds/policies/
+	https://apps-apis.google.com/a/feeds/user/
+
+
+Problem!
+--------
+
+So inside https://www.google.com/a/cpanel/mediacore.com/ManageOauthClients, I
+authorized access for my application's Service Account to the following scopes:
+
+	https://apps-apis.google.com/a/feeds/groups/#readonly
+	https://apps-apis.google.com/a/feeds/policies/#readonly
+	https://apps-apis.google.com/a/feeds/user/#readonly
+
+But my application kept failing when trying to request an OAuth2 token with
+access to the 'https://apps-apis.google.com/a/feeds/groups/' scope. Google
+was returning 'access_denied' errors.
+
+
+Searching for a Solution
+------------------------
+
+After a bit of debugging I found that these errors went away when I went back
+to the ManageOauthClients page and changed changed the
+	https://apps-apis.google.com/a/feeds/groups/#readonly scope to
+	https://apps-apis.google.com/a/feeds/groups/
+
+At this point I started digging around for how to make that scope read-only.
+I found that some scopes inside Google's APIs use
+https://domain/path/#readonly and some use https://domain/path.readonly.
+
+So I tried using https://apps-apis.google.com/a/feeds/groups.readonly .
+
+'access_denied' again!
+
+A little more digging lead me to find that the "groups" scope is sometimes
+described as:
+	https://apps-apis.google.com/a/feeds/groups/
+
+but sometimes as:
+	https://apps-apis.google.com/a/feeds/group/#readonly
+
+All in all I tried every one of the following authorized scopes:
+
+	https://apps-apis.google.com/a/feeds/group
+	https://apps-apis.google.com/a/feeds/group/
+	https://apps-apis.google.com/a/feeds/group/#readonly
+	https://apps-apis.google.com/a/feeds/group.readonly
+	https://apps-apis.google.com/a/feeds/groups
+	https://apps-apis.google.com/a/feeds/groups/
+	https://apps-apis.google.com/a/feeds/groups/#readonly
+	https://apps-apis.google.com/a/feeds/groups.readonly
+
+With each of the following scopes in a token request:
+
+	https://apps-apis.google.com/a/feeds/group/
+	https://apps-apis.google.com/a/feeds/groups/
+
+Only one combination succeeded: when the authorized scope and the requested
+scope were both 'https://apps-apis.google.com/a/feeds/groups/' .
+
+All of the combinations where the requested scope was
+'https://apps-apis.google.com/a/feeds/group/' returned an 'invalid_scope' error.
+
+And all other combinations returned 'access_denied'.
+
+
+Contadictions in the Documentation
+----------------------------------
+
+What makes this process infuriating is that there is no consistency between
+different sources of documentation or even examples of implementation!
+
+https://developers.google.com/oauthplayground/ lists the groups scope as
+'https://apps-apis.google.com/a/feeds/groups/'
+
+https://developers.google.com/google-apps/marketplace/manifest#supported_scopes
+lists it as 'https://apps-apis.google.com/a/feeds/group/'
+
+Even more confusingly, some docs use different ones depending on the language
+you read them in!
+In Spanish, https://support.google.com/a/bin/answer.py?hl=es&answer=162105
+uses "https://apps-apis.google.com/a/feeds/groups/#readonly" but in English,
+https://support.google.com/a/bin/answer.py?hl=es&answer=162105 uses
+"https://apps-apis.google.com/a/feeds/group/#readonly" !
+
+On https://www.google.com/a/cpanel/mediacore.com/ManageOauthClients some
+scopes will be shown with a "pretty" name. Invalid scopes and uncommon scopes
+get displayed as just the URL of the scope, but some scopes get special names.
+
+For example, the following scopes just display as their URLs:
+	https://apps-apis.google.com/a/feeds/group/
+	https://apps-apis.google.com/a/feeds/groups/#readonly
+	https://apps-apis.google.com/a/feeds/policies/#readonly
+	https://apps-apis.google.com/a/feeds/policies/
+
+And the following scopes get displayed with a special name:
+	Groups Provisioning (Read only)  https://apps-apis.google.com/a/feeds/group/#readonly
+	Groups Provisioning  https://apps-apis.google.com/a/feeds/groups/
+	User Provisioning  https://apps-apis.google.com/a/feeds/user/ 
+	User Provisioning (Read only)  https://apps-apis.google.com/a/feeds/user/#readonly
+
+Notice which of "group/", "groups/", "group/#readonly", and "groups/#readonly"
+get "pretty" names.
+
+Looking at some other services that I've used with Google Apps (i.e. looking
+at their permissions on the ManageOauthClients page) I found that
+"FlashPanel", "CloudLock for Google Apps", "SherpaTools for Google Apps",
+"General Audit Tool for Google Apps", and "Promevo gPanel for Google Apps"
+all use "https://apps-apis.google.com/a/feeds/group/#readonly"
+
+
+Conclusion
+----------
+
+We still have no idea what the hell is going on and remain unable to request a
+token to use the "groups" API without giving the Service Account read+write
+access to the "groups" API, while other APIs support read-only access as
+expected.
